@@ -107,6 +107,7 @@ public class ChessLogic {
 					return true;
 				}
 			}
+			return false;
 		}
 		//this checks if the pawn is moving straight into enemy piece.
 		if (end.x - start.x == 0) {
