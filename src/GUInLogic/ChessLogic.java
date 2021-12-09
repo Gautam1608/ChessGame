@@ -20,7 +20,6 @@ public class ChessLogic {
 	private static boolean isWhiteTurn = true;
 	private static int turnNumber = 1;//turnNumber increases for every move made by both players
 
-	//Left this in to be removed at the end. Helpful for testing and stuff
 	private final static Player whitePlayer = new Player(true);
 	private final static Player blackPlayer = new Player(false);
 	private final static List<Player> bothPlayers = new ArrayList<>(Arrays.asList(whitePlayer, blackPlayer));
