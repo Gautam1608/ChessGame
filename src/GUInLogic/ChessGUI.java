@@ -1,4 +1,4 @@
-package GUI;
+package GUInLogic;
 
 import Exceptions.InvalidMoveException;
 
