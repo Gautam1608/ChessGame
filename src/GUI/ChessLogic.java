@@ -1,8 +1,7 @@
 package GUI;
 
 import Exceptions.InvalidMoveException;
-import Pieces.Pawn;
-import Pieces.Piece;
+import Pieces.*;
 import Players.Player;
 
 import java.awt.*;
@@ -81,9 +80,7 @@ public class ChessLogic {
 	}
 
 	/**
-	 * Checks if pawn move is legal or not
-	 *
-	 * @return true if the move is legal and false if not
+	 * @return true if the Pawn move is legal and false if not
 	 */
 	private static boolean checkPawnMove(Point start, Point end) {
 
@@ -91,15 +88,22 @@ public class ChessLogic {
 		int player = isWhiteTurn ? 0 : 1;
 		int forOpp = isWhiteTurn ? 1 : -1;
 
-		if ((pieceMoved.position.equals(start)) && (forOpp * (end.y - start.y) == 2)) {
+		if (forOpp * (end.y - start.y) == 2) {
 			enPassantPawn = (Pawn) pieceMoved;
+			for (int i = 0; i < 2; i++) {
+				for (Piece block : bothPlayers.get(i).allPieces) {
+					if (block.position.equals(new Point(start.x, start.y + forOpp))) {
+						return false;
+					}
+				}
+			}
 			//System.out.println(enPassantPawn);
 		}
 
 		//this checks if the pawn kills something and returns true if so.
 		if (end.x - start.x != 0) {
 			checkEnPassantKill(end);
-			if(isEnPassantKill){
+			if (isEnPassantKill) {
 				return true;
 			}
 			for (Piece oppPiece : bothPlayers.get(player + forOpp).allPieces) {
@@ -109,16 +113,109 @@ public class ChessLogic {
 			}
 			return false;
 		}
-		//this checks if the pawn is moving straight into enemy piece.
-		if (end.x - start.x == 0) {
-			for (Piece oppPiece : bothPlayers.get(player + forOpp).allPieces) {
-				if (oppPiece.position.equals(end)) {
-					return false;
-				}
+		//this checks if the pawn is moving straight into enemy piece
+		//as end.x-start.x != 0 is already checked, we don't need conditional statements here
+		for (Piece oppPiece : bothPlayers.get(player + forOpp).allPieces) {
+			if (oppPiece.position.equals(end)) {
+				return true;
 			}
 		}
 		return true;
 	}
+
+	/**
+	 * @return true is there is a piece in-between the start and end point line
+	 */
+
+	private static boolean checkPieceInLine(Point start, Point end) {
+		List<Point> blockPoints = new ArrayList<>();
+		if (start.x == end.x) {
+			if (start.y < end.y) {
+				for (int y = start.y + 1; y <= end.y - 1; y++) {
+					blockPoints.add(new Point(start.x, y));
+				}
+			} else if (start.y > end.y) {
+				for (int y = start.y - 1; y >= end.y + 1; y--) {
+					blockPoints.add(new Point(start.x, y));
+				}
+			}
+		} else if (start.y == end.y) {
+			if (start.x < end.x) {
+				for (int x = start.x + 1; x <= end.x - 1; x++) {
+					blockPoints.add(new Point(x, start.y));
+				}
+			}
+			//if we reached here start.x will always be greater than end.x
+			else {
+				for (int x = start.x - 1; x >= end.x + 1; x--) {
+					blockPoints.add(new Point(x, start.y));
+				}
+			}
+		}
+		for (int player = 0; player < 2; player++) {
+			if (bothPlayers.get(player).allPieces.stream().anyMatch(p -> blockPoints.contains(p.position))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @return true is there is a piece in-between the start and end point diagonal
+	 */
+	private static boolean checkPieceInDiagonal(Point start, Point end) {
+		List<Point> blockPoints = new ArrayList<>();
+		if (start.x < end.x) {
+			if (start.y < end.y) {
+				for (int i = 1; i < end.x - start.x; i++) {
+					blockPoints.add(new Point(start.x + i, start.y + i));
+				}
+			} else if (start.y > end.y) {
+				for (int i = 1; i < end.x - start.x; i++) {
+					blockPoints.add(new Point(start.x + i, start.y - i));
+				}
+			}
+		} else if (start.x > end.x) {
+			if (start.y < end.y) {
+				for (int i = 1; i < start.x - end.x; i++) {
+					blockPoints.add(new Point(start.x - i, start.y + i));
+				}
+			} else if (start.y > end.y) {
+				for (int i = 1; i < start.x - end.x; i++) {
+					blockPoints.add(new Point(start.x - i, start.y - i));
+				}
+			}
+		}
+		for (int player = 0; player < 2; player++) {
+			if (bothPlayers.get(player).allPieces.stream().anyMatch(p -> blockPoints.contains(p.position))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @return true if the Rook move is legal and false if not
+	 */
+	private static boolean checkRookMove(Point start, Point end) {
+		return !checkPieceInLine(start, end);
+	}
+
+	/**
+	 * @return true if the Bishop move is legal and false if not
+	 */
+	private static boolean checkBishopMove(Point start, Point end) {
+		return !checkPieceInDiagonal(start, end);
+	}
+
+
+	/**
+	 * @return true if the Queen move is legal and false if not
+	 */
+	private static boolean checkQueenMove(Point start, Point end) {
+		return !(checkPieceInDiagonal(start, end) || checkPieceInLine(start, end));
+	}
+
 
 	/**
 	 * The most important method, checks the entire logic
@@ -163,9 +260,14 @@ public class ChessLogic {
 			}
 		}
 
-		//Special case for Pawn
 		if (pieceMoved instanceof Pawn && isMoveCorrect) {
 			isMoveCorrect = checkPawnMove(start, end);
+		} else if (pieceMoved instanceof Rook && isMoveCorrect) {
+			isMoveCorrect = checkRookMove(start, end);
+		} else if (pieceMoved instanceof Bishop && isMoveCorrect) {
+			isMoveCorrect = checkBishopMove(start, end);
+		} else if(pieceMoved instanceof Queen && isMoveCorrect){
+			isMoveCorrect = checkQueenMove(start,end);
 		}
 
 		return isMoveCorrect;
@@ -182,14 +284,14 @@ public class ChessLogic {
 
 		if (isEnPassantKill) {
 			Point kill = new Point(end.x, pieceMoved.position.y);
-			bothPlayers.get(player+forOpp).allPieces.remove(getPieceAtPosition(kill, !isWhiteTurn));
+			bothPlayers.get(player + forOpp).allPieces.remove(getPieceAtPosition(kill, !isWhiteTurn));
 		}
 
 		pieceMoved.position = end;
 
 		for (Piece p : bothPlayers.get(player + forOpp).allPieces) {
 			if (p.position.equals(end)) {
-				bothPlayers.get(player+forOpp).allPieces.remove(p);
+				bothPlayers.get(player + forOpp).allPieces.remove(p);
 				isPieceKill = true;
 				pieceMoved = null;
 				return;
@@ -216,9 +318,9 @@ public class ChessLogic {
 		Point start = correctCoordinates(s);
 		Point end = correctCoordinates(e);
 
-		if (checkPlayerMove(start, end)) {
+		printMoves(start, end);
 
-			printMoves(start, end);
+		if (checkPlayerMove(start, end)) {
 
 			movePieceAndKill(end);
 
