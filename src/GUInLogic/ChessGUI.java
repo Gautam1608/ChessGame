@@ -208,7 +208,7 @@ public class ChessGUI {
 			repaint();
 		}
 
-		public void killEnPassantPieceGrid(Component comp, Point end,Point enPassantKill) {
+		public void killEnPassantPieceGrid(Component comp, Point end, Point enPassantKill) {
 			for (Component c : getComponents()) {
 				Point killPoint = pointToGrid(c.getLocation());
 				if (killPoint != null) {
@@ -240,6 +240,19 @@ public class ChessGUI {
 			repaint();
 		}
 
+		public void castlingGrid(Component comp, Point end) {
+			Component rook;
+			if (end.x == 2) {
+				rook = getComponentAt(gridToPoint(new Point(0, end.y)));
+				setPieceGrid(rook, new Point(3, end.y));
+			} else if (end.x == 6) {
+				rook = getComponentAt(gridToPoint(new Point(7, end.y)));
+				setPieceGrid(rook, new Point(5, end.y));
+			}
+
+			setPieceGrid(comp, end);
+		}
+
 		public void pieceMovement(Component dragComponent, Point start, Point end) {
 
 			int moveType;
@@ -252,11 +265,20 @@ public class ChessGUI {
 					killPieceGrid(dragComponent, end);
 				} else if (moveType == 2) {
 					killEnPassantPieceGrid(dragComponent, end, new Point(end.x, start.y));
+				} else if (moveType == 3){
+					castlingGrid(dragComponent, end);
+				} else if(moveType == 4){
+					System.out.println("Promotion not working");
+				} else if (moveType == 5){
+					System.out.println("CheckMate");
+					JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+					frame.dispose();
+					new ChessGUI();
 				}
 			}
 			//drops the piece back to the original square if it's a wrong move.
 			catch (NullPointerException | InvalidMoveException ex) {
-				//ex.printStackTrace();
+				ex.printStackTrace();
 				setPieceGrid(dragComponent, start);
 			}
 		}
@@ -335,7 +357,7 @@ public class ChessGUI {
 					Point start = boardPanel.pointToGrid(clickedPoint);
 					Point end = boardPanel.pointToGrid(e.getPoint());
 					BoardPanel boardPanel = getBoardPanel();
-					boardPanel.pieceMovement(dragComponent,start, end);
+					boardPanel.pieceMovement(dragComponent, start, end);
 					boardPanel.setHighLightCell(null);
 					pieceClicked = false;
 					dragComponent = null;
@@ -361,9 +383,9 @@ public class ChessGUI {
 	 * I don't understand this at all,
 	 * I just copied from it all from stackoverflow ;P
 	 */
-	 //Link :
-	 //https://stackoverflow.com/questions/13698217/how-to-make-draggable-components-with-imageicon
-	 //Credit to user MadProgrammer
+	//Link :
+	//https://stackoverflow.com/questions/13698217/how-to-make-draggable-components-with-imageicon
+	//Credit to user MadProgrammer
 	public class BoardLayoutManager implements LayoutManager2 {
 
 		private final Map<Component, Point> mapGrid;
