@@ -35,6 +35,7 @@ public class ChessLogic {
     private static Pawn enPassantPawn = null;
     //Make this false before the en passant return statement
     private static boolean isEnPassantKill = false;
+    private static Point promotionPoint = null;
 
     private static boolean isShortCastleBlack = true;
     private static boolean isLongCastleBlack = true;
@@ -213,6 +214,9 @@ public class ChessLogic {
             Point start = piece.position;
             for (Point point : piece.getAllMoves()) {
                 if (piece instanceof Bishop || piece instanceof Queen) {
+                    if (point.x - piece.position.x == 0 || point.y - piece.position.y == 0) {
+                        continue;
+                    }
                     if (!checkPieceInDiagonal(piece.position, point)) {
                         Piece sameColorPiece = getPieceAtPosition(point, isWhite);
                         Piece killed = getPieceAtPosition(point, !isWhite);
@@ -232,6 +236,9 @@ public class ChessLogic {
                     }
                 }
                 if (piece instanceof Rook || piece instanceof Queen) {
+                    if (!(point.x - piece.position.x == 0 || point.y - piece.position.y == 0)) {
+                        continue;
+                    }
                     if (!checkPieceInLine(piece.position, point)) {
                         Piece sameColorPiece = getPieceAtPosition(point, isWhite);
                         Piece killed = getPieceAtPosition(point, !isWhite);
@@ -255,7 +262,7 @@ public class ChessLogic {
                         break;
                     }
                     Piece sameColorPiece = getPieceAtPosition(point, isWhite);
-                    Piece killed = getPieceAtPosition(piece.position, !isWhite);
+                    Piece killed = getPieceAtPosition(point, !isWhite);
                     bothPlayers.get(oppPlayer).allPieces.remove(killed);
                     piece.position = point;
                     if (!checkCheckInPoint(bothKings.get(player).position, isWhite) && sameColorPiece == null) {
@@ -272,8 +279,9 @@ public class ChessLogic {
                 }
                 if (piece instanceof Pawn) {
                     if (Math.abs(piece.position.y - point.y) == 2) {
-                        if (getPieceAtPosition(new Point(start.x, start.y + 1), isWhite) != null || getPieceAtPosition(new Point(start.x, start.y + 1), !isWhite) != null
-                                || getPieceAtPosition(point, isWhite) != null || getPieceAtPosition(point, !isWhite) != null) {
+                        int checkY = isWhite ? 1 : -1;
+                        if (getPieceAtPosition(new Point(start.x, start.y + checkY), isWhite) == null && getPieceAtPosition(new Point(start.x, start.y + checkY), !isWhite) == null
+                                && getPieceAtPosition(point, isWhite) == null && getPieceAtPosition(point, !isWhite) == null) {
                             piece.position = point;
                             if (!checkCheckInPoint(bothKings.get(player).position, isWhite)) {
                                 piece.position = start;
@@ -312,6 +320,7 @@ public class ChessLogic {
         }
         return true;
     }
+
 
     private static void checkCastlePossible(Point start, Point end) {
         if (checkCheckInPoint(start, true)) {
@@ -428,9 +437,11 @@ public class ChessLogic {
         }
         //this checks if the pawn is moving straight into enemy piece
         //as end.x-start.x != 0 is already checked, we don't need conditional statements here
-        for (Piece oppPiece : bothPlayers.get(player + forOpp).allPieces) {
-            if (oppPiece.position.equals(end)) {
-                return true;
+        for (int i = 0; i < 2; i++) {
+            for (Piece oppPiece : bothPlayers.get(i).allPieces) {
+                if (oppPiece.position.equals(end)) {
+                    return false;
+                }
             }
         }
         return true;
@@ -601,22 +612,41 @@ public class ChessLogic {
             pieceMoved = null;
             throw new InvalidMoveException();
         }
-        pieceMoved = null;
+    }
+
+    public static boolean updatePromotion(char newPiece) {
+        Piece p = null;
+        if (newPiece == 'Q') {
+            p = new Queen(promotionPoint.x, promotionPoint.y, !isWhiteTurn);
+        }
+        else if (newPiece == 'B') {
+            p = new Bishop(promotionPoint.x, promotionPoint.y, !isWhiteTurn);
+        }
+        else if (newPiece == 'R') {
+            p = new Rook(promotionPoint.x, promotionPoint.y, !isWhiteTurn);
+        }
+        else if (newPiece == 'N') {
+            p = new Knight(promotionPoint.x, promotionPoint.y, !isWhiteTurn);
+        }
+        bothPlayers.get(!isWhiteTurn ? 0 : 1).allPieces.add(p);
+        promotionPoint = null;
+        return checkCheckMate(isWhiteTurn);
     }
 
     /**
      * @param s Start point of the piece in range (0,0) to (7,7)
      * @param e End point of the piece in range (0,0) to (7,7)
      * @return int moveType
-     * 0 - normal move
-     * 1 - kill piece at location
-     * 2 - kill by en passant
-     * 3 - castling
-     * 4 - pawn promotion
-     * 5 - checkmate
+     * 0 - kill piece at location
+     * 1 - kill by en passant
+     * 2 - castling
+     * 3 - pawn promotion
+     * 4 - checkmate
      * @throws InvalidMoveException This is to be caught and undo the move
      */
-    public static int isMoveType(Point s, Point e) throws InvalidMoveException {
+    public static boolean[] isMoveType(Point s, Point e) throws InvalidMoveException {
+        boolean[] returnValue = new boolean[]{false, false, false, false, false, false};
+        boolean promotion = false;
 
         //This is to get the start and end in board coordinates, so it's easy to read and debug
         Point start = correctCoordinates(s);
@@ -631,44 +661,13 @@ public class ChessLogic {
             if (isWhiteTurn) {
                 turnNumber++;
             }
-            if (checkCheckInPoint(bothKings.get(!isWhiteTurn ? 0 : 1).position, !isWhiteTurn)) {
-                if (checkCheckMate(!isWhiteTurn)) {
-                    bothPlayers.remove(0);
-                    bothPlayers.remove(0);
-                    isWhiteTurn = true;
-                    turnNumber = 1;
-                    whitePlayer.reset();
-                    blackPlayer.reset();
-                    bothPlayers.addAll(Arrays.asList(whitePlayer, blackPlayer));
-                    assert whiteKing != null;
-                    whiteKing.position = new Point(5, 1);
-                    assert blackKing != null;
-                    blackKing.position = new Point(5, 8);
-                    bothKings.clear();
-                    bothKings.addAll(Arrays.asList(whiteKing, blackKing));
-                    pieceMoved = null;
-                    isPieceKill = false;
-                    enPassantPawn = null;
-                    isEnPassantKill = false;
-                    isShortCastleBlack = true;
-                    isLongCastleBlack = true;
-                    isShortCastleWhite = true;
-                    isLongCastleWhite = true;
-                    hasCastles = false;
-                    return 5;
-                }
-            }
-            isWhiteTurn = !isWhiteTurn;
-            //all return statements should be below this
-            pieceMoved = null;
-            //return statements from here please...
             if (isPieceKill && !isEnPassantKill) {
                 isPieceKill = false;
-                return 1;
+                returnValue[0] = true;
             }
             if (isEnPassantKill) {
                 isEnPassantKill = false;
-                return 2;
+                returnValue[1] = true;
             }
             if (hasCastles) {
                 hasCastles = false;
@@ -680,15 +679,59 @@ public class ChessLogic {
                     isLongCastleBlack = false;
                     isShortCastleBlack = false;
                 }
-                return 3;
+                returnValue[2] = true;
             }
-            return 0;
+            if (pieceMoved instanceof Pawn && ((isWhiteTurn && pieceMoved.position.y == 8) || (!isWhiteTurn && pieceMoved.position.y == 1))) {
+                bothPlayers.get(isWhiteTurn ? 0 : 1).allPieces.remove(pieceMoved);
+                promotion = true;
+                promotionPoint = pieceMoved.position;
+                returnValue[3] = true;
+            }
+            if (checkCheckMate(!isWhiteTurn)) {
+                if (checkCheckInPoint(bothKings.get(!isWhiteTurn ? 0 : 1).position, !isWhiteTurn) && !promotion) {
+                    returnValue[4] = true;
+                }
+                else {
+                    returnValue[5] = true;
+                }
+                bothPlayers.remove(0);
+                bothPlayers.remove(0);
+                isWhiteTurn = true;
+                turnNumber = 1;
+                whitePlayer.reset();
+                blackPlayer.reset();
+                bothPlayers.addAll(Arrays.asList(whitePlayer, blackPlayer));
+                assert whiteKing != null;
+                whiteKing.position = new Point(5, 1);
+                assert blackKing != null;
+                blackKing.position = new Point(5, 8);
+                bothKings.clear();
+                bothKings.addAll(Arrays.asList(whiteKing, blackKing));
+                pieceMoved = null;
+                isPieceKill = false;
+                enPassantPawn = null;
+                isEnPassantKill = false;
+                isShortCastleBlack = true;
+                isLongCastleBlack = true;
+                isShortCastleWhite = true;
+                isLongCastleWhite = true;
+                hasCastles = false;
+
+                promotionPoint = null;
+                return returnValue;
+            }
+            isWhiteTurn = !isWhiteTurn;
+            //all return statements should be below this
+            pieceMoved = null;
+            //return statements from here please...
+            return returnValue;
         }
         else {
             //Probably redundant checks but maintains the board status for the next move
             isPieceKill = false;
             isEnPassantKill = false;
             pieceMoved = null;
+            promotionPoint = null;
             hasCastles = false;
             throw new InvalidMoveException();
         }
