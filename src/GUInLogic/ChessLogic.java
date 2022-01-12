@@ -323,7 +323,7 @@ public class ChessLogic {
 
 
     private static void checkCastlePossible(Point start, Point end) {
-        if (checkCheckInPoint(start, true)) {
+        if (checkCheckInPoint(start, isWhiteTurn)) {
             hasCastles = false;
             return;
         }
@@ -652,10 +652,11 @@ public class ChessLogic {
         Point start = correctCoordinates(s);
         Point end = correctCoordinates(e);
 
-        printMoves(start, end);
+
 
         if (checkPlayerMove(start, end)) {
 
+            printMoves(start, end);
             movePieceAndKill(end);
 
             if (isWhiteTurn) {
@@ -671,7 +672,7 @@ public class ChessLogic {
             }
             if (hasCastles) {
                 hasCastles = false;
-                if (!isWhiteTurn) {
+                if (isWhiteTurn) {
                     isLongCastleWhite = false;
                     isShortCastleWhite = false;
                 }
